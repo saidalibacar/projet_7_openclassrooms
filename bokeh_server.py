@@ -9,6 +9,7 @@ import joblib
 import pandas as pd
 import shap
 import numpy as np
+import shap
 
 # Load the pre-trained model
 model = joblib.load('lightgbm_model.joblib')
@@ -55,6 +56,10 @@ scatter_source = ColumnDataSource(data={'x': [], 'y': []})
 scatter_plot = figure(height=300, width=600, title="Scatter Plot", tools='', x_axis_label="X-axis", y_axis_label="Y-axis")
 scatter_plot.circle('x', 'y', source=scatter_source, size=8, color='navy', alpha=0.6)
 
+
+
+
+
 # Function to update the histogram based on the selected variable
 def update_histogram():
     variable = variable_select.value
@@ -67,6 +72,36 @@ def update_histogram():
     else:
         # If no variable is selected, clear the histogram
         hist_source.data = {'top': [], 'bottom': [], 'left': [], 'right': []}
+
+# Function to calculate and plot global feature importance
+def plot_global_feature_importance():
+    # Drop 'client_id' column before calculating SHAP values
+    features_for_shap = X_test_app.drop(columns=['client_id'])
+
+    # Extract feature names from the DataFrame
+    feature_names_list = features_for_shap.columns.tolist()
+    
+    # Calculate global feature importance using SHAP values
+    explainer = shap.TreeExplainer(model)
+    shap_values = explainer.shap_values(features_for_shap)
+
+    # Aggregate SHAP values across all instances
+    mean_abs_shap_values = np.mean(np.abs(shap_values[1]), axis=0)
+
+    # Select the top 30 features by absolute SHAP value
+    top_features_indices = np.argsort(mean_abs_shap_values)[-20:][::-1]
+    top_features_names = [feature_names_list[i] for i in top_features_indices]
+    top_features_values = mean_abs_shap_values[top_features_indices]
+
+    # Create a bar plot for global feature importance
+    global_importance_plot = figure(x_range=top_features_names, height=400, width=800, title="Global Feature Importance", tools='', toolbar_location=None, tooltips=[("Feature", "@x"), ("Importance", "@top")])
+    global_importance_plot.vbar(x=top_features_names, top=top_features_values, width=0.9, fill_color="navy", line_color="white")
+
+    global_importance_plot.xaxis.major_label_orientation = "vertical"
+    global_importance_plot.yaxis.axis_label = "Mean |SHAP Value|"
+
+    return global_importance_plot
+
 
 # Function to update the scatter plot based on the selected features
 def update_scatter_plot():
@@ -112,8 +147,11 @@ variable_select.on_change('value', lambda attr, old, new: update_histogram())
 x_feature_select.on_change('value', lambda attr, old, new: update_scatter_plot())
 y_feature_select.on_change('value', lambda attr, old, new: update_scatter_plot())
 
+# Set up Global Feature Importance Plot
+global_importance_plot = plot_global_feature_importance()
+
 # Set up layout
-layout = column(text_input, variable_select, x_feature_select, y_feature_select, button, result_text, row(gauge, histogram, scatter_plot))
+layout = column(text_input, variable_select, x_feature_select, y_feature_select, button, result_text, row(gauge, histogram, scatter_plot), global_importance_plot)
 
 # Add layout to the current document
 curdoc().add_root(layout)
@@ -121,6 +159,7 @@ curdoc().add_root(layout)
 # Initial update of the histogram and scatter plot
 update_histogram()
 update_scatter_plot()
+
 
 
 
