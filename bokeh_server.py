@@ -115,32 +115,43 @@ def plot_global_feature_importance():
 feature_names = X_test_app.columns
 
 
-def plot_local_feature_importance(value):
+# Function to calculate and display local feature importance using decision plot
+def plot_local_feature_importance():
     try:
-        client_id = int(value)
+        client_id = int(text_input.value)
 
-        sample_instance = X_test_app[X_test_app['client_id'] == client_id].drop(columns=['client_id']).values.reshape(1, -1)
-        class_index_to_visualize = 1
+        # Check if the entered client_id is within the valid range
+        if 0 <= client_id < len(X_test_app):
+            # Extract features for the selected client
+            sample_instance = X_test_app[X_test_app['client_id'] == client_id].drop(columns=['client_id']).values.reshape(1, -1)
+            class_index_to_visualize = 1  # You may adjust this based on your problem
 
-        explainer = shap.TreeExplainer(model)
-        shap_values = explainer.shap_values(X_test_app.drop(columns=['client_id']))
+            # Calculate local feature importance using SHAP values
+            explainer = shap.TreeExplainer(model)
+            shap_values = explainer.shap_values(X_test_app.drop(columns=['client_id']))
 
-        client_shap_values = shap_values[class_index_to_visualize][client_id, :]
+            # Plot local feature importance with decision plot
+            decision_plot = shap.force_plot(
+                explainer.expected_value[class_index_to_visualize],
+                shap_values[class_index_to_visualize][0, :],
+                X_test_app.drop(columns=['client_id']).iloc[0, :],
+                matplotlib=True,
+                show=False
+            )
 
-        plt.figure(figsize=(10, 6))
-        plt.bar(feature_names, client_shap_values)
-        plt.title(f"Local Feature Importance for Client ID {client_id}")
-        plt.xlabel("Feature")
-        plt.ylabel("SHAP Value")
-        plt.xticks(rotation=45, ha="right")
-        plt.tight_layout()
+            # Ensure that the necessary JavaScript is loaded
+            mpld3.initjs()
 
-        # Display the plot in Bokeh using mpld3
-        mpld3_fig = mpld3.fig_to_html(plt.gcf())
+            # Convert the Matplotlib figure to HTML using mpld3
+            decision_plot_html = mpld3.fig_to_html(decision_plot)
 
-        # Clear any previous error messages
-        local_feature_importance_div.text = ""
+            # Create a Bokeh Div element and set its content to the decision plot HTML
+            local_feature_importance_div.text = decision_plot_html
+        else:
+            # Handle the case where the entered client_id is out of range
+            local_feature_importance_div.text = "Invalid Client ID. Please enter a valid ID."
     except ValueError:
+        # Handle the case where the entered value is not a valid integer
         local_feature_importance_div.text = "Please enter a valid integer for Client ID."
 
 
