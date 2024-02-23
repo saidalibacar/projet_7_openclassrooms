@@ -33,6 +33,10 @@ jobs:
       - name: flask pytest
         run:  |
           python test_app.py
+
+      - name: bokeh pytest
+        run:  |
+          python test_bokeh_server.py          
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
           
       - name: Zip artifact for deployment
